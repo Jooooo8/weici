@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微词</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>微词</h1>
+    <span class="sub">逐字校验平仄 · 依钦定词谱 / 龙榆生词谱对照格律与韵脚</span>
+    <nav class="nav-tabs" id="nav-tabs">
+      <button data-page="write" class="active">写诗填词</button>
+      <button data-page="appreciate">诗词鉴赏</button>
+      <button data-page="tunefind">找词牌</button>
+      <button data-page="jiju">集句检索</button>
+      <button data-page="yunshu">查韵书</button>
+      <button data-page="shidetail">格律详解</button>
+    </nav>
+    <div class="header-actions">
+      <button class="icon-btn" id="btn-works">我的作品</button>
+      <button class="icon-btn" id="btn-glossary">术语</button>
+      <button class="icon-btn" id="btn-settings">界面设置</button>
+      <button class="icon-btn" id="btn-music">♪ 音乐</button>
+    </div>
+  </header>
+
+  <main id="page-write">
+    <div class="panel">
+      <div class="step">第一步 · 选择体裁</div>
+      <div class="row">
+        <div id="yun-wrap">
+          <label>韵书：</label>
+          <select id="yun-select">
+            <option value="词林正韵">《词林正韵》（古韵，含入声）</option>
+            <option value="中华新韵">《中华新韵》（普通话）</option>
+          </select>
+        </div>
+        <div class="mode-switch" id="mode-switch">
+          <button data-mode="shi" class="active">写诗</button>
+          <button data-mode="ci">写词</button>
+        </div>
+        <div id="shi-wrap" class="row">
+          <label>格律：</label>
+          <select id="shi-select"></select>
+        </div>
+        <div id="ci-wrap" class="row" style="display:none; flex:1;">
+          <label>词牌：</label>
+          <input type="text" id="tune-search" placeholder="搜索词牌，如：水调歌头" style="min-width:150px;">
+          <select id="tune-select" style="flex:1; min-width:260px;"></select>
+        </div>
+      </div>
+      <div class="meta" id="meta-line"></div>
+    </div>
+
+    <div class="layout">
+      <div class="panel editor">
+        <div class="step">第二步 · 逐句填写</div>
+        <div id="editor-body"><div class="empty">请先选择体裁与格律 / 词牌</div></div>
+        <div class="actions">
+          <button class="action primary" id="btn-example">载入经典例作</button>
+          <button class="action" id="btn-view-example">查看例作原文 / PDF</button>
+          <button class="action" id="btn-gen">自动成句</button>
+          <button class="action" id="btn-copy">复制全文</button>
+          <button class="action" id="btn-import">粘贴导入</button>
+          <button class="action" id="btn-yunshu">查韵书</button>
+          <button class="action" id="btn-print">查看原文 / 导出 PDF</button>
+          <button class="action" id="btn-save-work">保存作品</button>
+          <button class="action" id="btn-open-works">我的作品</button>
+          <button class="action" id="btn-clear">清空重写</button>
+        </div>
+        <div class="legend">
+          <span class="dot" style="background:#2b5ea7"></span>平声字
+          <span class="dot" style="background:#b03a2e"></span>仄声字
+          <span class="dot" style="background:#8b8577"></span>可平可仄
+          <span class="dot" style="background:#8a1f1f"></span>须用去声
+          <span class="dot" style="background:#7a4d9e"></span>多音字：平仄竖排、逐音标注（绿=合律，红=不合）
+          <span class="dot" style="background:#f0ede4"></span>未收录
+          <span style="display:block;margin-top:6px;">✦ 点击下方任意已输入的字，右侧「韵书查询」会显示它的韵部与通押字词。</span>
+        </div>
+      </div>
+
+      <div class="panel report">
+        <h3>格律检测</h3>
+        <div id="report-body"><div class="hint">填写内容后，这里会实时显示平仄合格率、出律字与押韵情况。</div></div>
+      </div>
+    </div>
+  </main>
+
+  <main id="page-shidetail" style="display:none;">
+    <div class="panel">
+      <div class="step">格律详解 · 近体诗十六式 + 常见变体</div>
+      <div class="hint">左边选一格，可看<strong>逐句谱式、例作逐字对照、该式要点与常见变体</strong>；点「按此格律写」直接进入写作页。写作页的检测口径（宽格 / 严格）也在本页说明。</div>
+      <div class="sd-layout">
+        <div class="sd-side">
+          <div class="sd-group" id="sd-groups"></div>
+        </div>
+        <div class="sd-main" id="sd-main"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="step">检测口径：宽格 / 严格</div>
+      <div class="hint" id="sd-mode-hint"></div>
+      <div class="tf-controls">
+        <label>写作页口径 <select id="sd-tone-mode">
+          <option value="wide">宽格（一三五不论，默认）</option>
+          <option value="strict">严格（中以外每格都要合）</option>
+        </select></label>
+      </div>
+      <div id="sd-variants"></div>
+    </div>
+  </main>
+
+  <main id="page-yunshu" style="display:none;">
+    <div class="panel">
+      <div class="step">韵书查询 · 词林正韵 / 中华新韵</div>
+      <div class="yun-controls">
+        <input type="text" id="yun-search" maxlength="4" placeholder="搜索字，如：秋" autocomplete="off">
+        <select id="yun-browse-book">
+          <option value="词林正韵">《词林正韵》</option>
+          <option value="中华新韵">《中华新韵》</option>
+        </select>
+        <select id="yun-part"></select>
+        <select id="yun-tune"></select>
+      </div>
+      <div class="yun-hint" id="yun-hint">可搜索单个汉字查韵部（多音字逐音列出）；或按「韵书 → 部 → 韵目」浏览韵字表；在写作页点击已输入的字，会自动跳到本页查询该字。</div>
+      <div id="yun-result"></div>
+    </div>
+  </main>
+
+  <main id="page-tunefind" style="display:none;">
+    <div class="panel">
+      <div class="step">找词牌 · 拿你写的句子反查能装下它的词牌</div>
+      <div class="hint">把写好的句子（或半成品）粘进来，程序按<strong>字数、句读段长、平仄、押韵</strong>逐项比对 157 个词牌，算匹配度并排序，点「用此词牌填」即可带着原文进入写作页。也可以留空，只按字数 / 句数 / 韵式筛选词牌。</div>
+      <textarea id="tf-text" placeholder="例：明月几时有，把酒问青天。不知天上宫阙，今夕是何年。"></textarea>
+      <div class="tf-controls">
+        <label>总字数 <input type="number" id="tf-chars" min="1" max="400" placeholder="不限"></label>
+        <label>句数 <input type="number" id="tf-lines" min="1" max="60" placeholder="不限"></label>
+        <label>韵式 <select id="tf-mode">
+          <option value="">不限</option>
+          <option value="平韵格">平韵格</option>
+          <option value="仄韵格">仄韵格</option>
+          <option value="平仄转换">平仄转换</option>
+          <option value="平仄通叶">平仄通叶</option>
+        </select></label>
+        <button class="action" id="btn-tf-find">开始匹配</button>
+        <button class="action" id="btn-tf-clear">清空</button>
+      </div>
+      <div id="tf-result"><div class="hint">粘贴句子后点「开始匹配」（在输入框里按 Ctrl+Enter 也可以）。</div></div>
+    </div>
+  </main>
+
+  <main id="page-jiju" style="display:none;">
+    <div class="panel">
+      <div class="step">集句检索 · 在本地全库里找句子</div>
+      <div class="hint">按<strong>关键词（意象、字词）、字数、平仄格律</strong>检索全库里的<strong>单句</strong>，可用于集句、化用、找语感。平仄用「平仄」二字写，如 <code>仄仄平平仄</code>，把握不准的位置写「中」。点「用此句」会填到写作页<strong>当前光标所在的那一句</strong>（字数不符则改为复制）。</div>
+      <div class="tf-controls">
+        <label>关键词 <input type="text" id="jj-kw" placeholder="如：明月 / 孤舟 / 断肠" style="width:190px"></label>
+        <label>字数 <input type="number" id="jj-len" min="4" max="12" placeholder="不限"></label>
+        <label>平仄 <input type="text" id="jj-pat" maxlength="12" placeholder="如 仄仄平平仄" style="width:140px"></label>
+        <label>体裁 <select id="jj-kind">
+          <option value="">全部</option>
+          <option value="诗">诗</option>
+          <option value="词">词</option>
+          <option value="曲">曲</option>
+        </select></label>
+        <label>条数 <select id="jj-limit">
+          <option>30</option><option selected>60</option><option>120</option><option>200</option>
+        </select></label>
+        <button class="action" id="btn-jj-find">检索</button>
+      </div>
+      <div id="jj-result"><div class="hint">输入关键词或平仄后点「检索」。全库按需加载，首次检索请等左下进度走完，范围会随加载增大。</div></div>
+      <div class="hint" id="jj-progress" style="color:var(--gold);"></div>
+    </div>
+  </main>
+
+  <main id="page-appreciate" style="display:none;">
+    <div class="panel">
+      <div class="step">诗词鉴赏 · 全库 42,411 首（精选 426 首含注评，43 个分片按需加载）</div>
+      <div class="appr-recommend" id="appr-recommend"></div>
+      <div class="appr-filter">
+        <select id="appr-collection">
+          <option value="">全部文集</option>
+          <option value="唐诗三百首">唐诗三百首</option>
+          <option value="宋词三百首">宋词三百首</option>
+        </select>
+        <select id="appr-kind">
+          <option value="">全部体裁</option>
+          <option value="诗">诗</option>
+          <option value="词">词</option>
+          <option value="曲">曲</option>
+          <option value="文">文</option>
+        </select>
+        <select id="appr-dynasty">
+          <option value="">全部朝代</option>
+          <option value="先秦">先秦</option>
+          <option value="两汉">两汉</option>
+          <option value="魏晋南北朝">魏晋南北朝</option>
+          <option value="隋">隋</option>
+          <option value="唐">唐</option>
+          <option value="五代">五代</option>
+          <option value="宋">宋</option>
+          <option value="金">金</option>
+          <option value="元">元</option>
+          <option value="明">明</option>
+          <option value="清">清</option>
+          <option value="近现代">近现代</option>
+        </select>
+        <select id="appr-tune">
+          <option value="">全部词牌</option>
+        </select>
+        <select id="appr-tag">
+          <option value="">全部分类</option>
+        </select>
+        <input type="text" id="appr-author-kw" placeholder="搜索作者名，如：李白" style="min-width:150px;">
+        <select id="appr-author">
+          <option value="">全部作者</option>
+        </select>
+        <input type="text" id="appr-kw" class="kw" placeholder="搜索标题 / 作者 / 内容，如：明月">
+      </div>
+      <div class="hint" id="appr-loading" style="margin:8px 2px;color:var(--gold);"></div>
+      <div class="appr-count" id="appr-count"></div>
+      <div class="appr-list" id="appr-list"></div>
+      <button class="action" id="appr-more" style="margin-top:10px;display:none;">加载更多</button>
+    </div>
+  </main>
+
+  <main id="page-appr-detail" style="display:none;">
+    <div class="panel">
+      <div class="row">
+        <button class="action" id="appr-detail-back">← 返回列表</button>
+      </div>
+      <div class="appr-detail" id="appr-detail" style="margin-top:12px;"></div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 我的作品弹窗 -->
+  <div class="overlay" id="works-overlay">
+    <div class="modal">
+      <h2>我的作品 <button class="x" data-close="works-overlay">×</button></h2>
+      <div class="works-tools">
+        <button class="small-btn" id="btn-works-export">导出全部（JSON 备份）</button>
+        <button class="small-btn" id="btn-works-import">导入备份</button>
+        <button class="small-btn" id="btn-stats">写作统计</button>
+        <input type="file" id="works-import-file" accept=".json,application/json" style="display:none">
+      </div>
+      <div class="hint">备份文件含全部作品的标题、体裁、韵书与正文；换电脑、清浏览器数据后可导回（同名同文的重复项会自动跳过）。</div>
+      <div id="works-list"></div>
+    </div>
+  </div>
+
+  <!-- 保存作品弹窗 -->
+  <div class="overlay" id="save-overlay">
+    <div class="modal" style="width:480px;">
+      <h2>保存作品 <button class="x" data-close="save-overlay">×</button></h2>
+      <div class="hint">为作品起个名字（留空则用词牌 / 格律名）</div>
+      <div class="save-form">
+        <input type="text" id="save-title" maxlength="40" placeholder="作品标题">
+        <button class="action primary" id="save-confirm">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 界面设置弹窗 -->
+  <div class="overlay" id="settings-overlay">
+    <div class="modal">
+      <h2>界面设置 <button class="x" data-close="settings-overlay">×</button></h2>
+      <div class="step">署名 ID</div>
+      <div class="save-form">
+        <input type="text" id="author-id" maxlength="30" placeholder="填写笔名 / ID，打印与导出时自动署名">
+        <button class="bg-btn" id="author-id-save">保存</button>
+      </div>
+      <div class="hint" id="author-id-hint" style="margin-top:6px;"></div>
+      <div class="step">主题颜色</div>
+      <div class="theme-grid" id="theme-grid"></div>
+      <div class="step" style="margin-top:16px;">页面背景</div>
+      <div class="hint">内置五套低干扰背景，点击缩略图即可切换；也可用 bg1.jpg ~ bg5.jpg 替换 <b>backgrounds</b> 文件夹中的同名文件。</div>
+      <div class="bg-row" id="bg-row"></div>
+      <div class="step" style="margin-top:16px;">字体</div>
+      <div class="settings-grid">
+        <label>界面字体 <select id="font-ui-select"></select></label>
+        <label>诗词 / PDF 字体 <select id="font-poem-select"></select></label>
+      </div>
+      <div class="hint" style="margin-top:6px;">已加入瘦金体、宋徽宗瘦金体、汉仪瘦金书、馆阁体、隶书、华文行楷、华文新魏、方正舒体、幼圆、华文琥珀、华文彩云、小篆等本机艺术字体；未安装时会自动回退到行楷或楷体。PDF 的加粗、字号、行距、字距、对齐与横竖排在「查看原文 / 导出 PDF」预览里调节。</div>
+      <div class="step" style="margin-top:16px;">PDF 原文稿</div>
+      <div class="settings-grid">
+        <label>纸纹 <select id="print-bg-select">
+          <option value="none">素纸</option>
+          <option value="1">水墨</option>
+          <option value="2">远山</option>
+          <option value="3">竹韵</option>
+          <option value="4">荷塘</option>
+          <option value="5">星空</option>
+        </select></label>
+        <label>文字 <select id="print-script-select">
+          <option value="original">原文</option>
+          <option value="s2t">转繁体</option>
+          <option value="t2s">转简体</option>
+        </select></label>
+        <label>配色样式 <select id="print-palette-select"></select></label>
+        <label>字色 <input type="color" id="print-ink"></label>
+        <label>纸色 <input type="color" id="print-paper"></label>
+        <label>纸面图样 <select id="print-motif-select"></select></label>
+        <label>图样浓度 <input type="range" id="print-motif-strength" min="5" max="60" step="5"></label>
+        <label>纸纹浓度 <input type="range" id="print-strength" min="20" max="100" step="5"></label>
+        <label class="settings-check"><input type="checkbox" id="print-meta"> 显示署名与韵书说明</label>
+      </div>
+      <div class="step" style="margin-top:16px;">背景音乐</div>
+      <div class="hint">将音频命名为 <b>bgm.mp3</b>（可再加 bgm2.mp3 ~ bgm6.mp3 循环播放）放入 <b>music</b> 文件夹。</div>
+      <div class="bg-row">
+        <button class="bg-btn" id="music-play">播放 / 暂停</button>
+        <button class="bg-btn" id="music-next">换一首</button>
+        <button class="bg-btn" id="music-vol-down">音量 −</button>
+        <button class="bg-btn" id="music-vol-up">音量 ＋</button>
+      </div>
+      <div class="hint" id="music-hint" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- 默写练习弹窗 -->
+  <div class="overlay" id="pra-overlay">
+    <div class="modal" style="width:700px;">
+      <h2>默写练习 <button class="x" data-close="pra-overlay">×</button></h2>
+      <div class="pra-head">
+        <span id="pra-title" class="pra-title"></span>
+      </div>
+      <div class="tf-controls">
+        <label>模式 <select id="pra-mode">
+          <option value="half">隐去每句后半</option>
+          <option value="even">隐去偶句</option>
+          <option value="all">全篇默写</option>
+        </select></label>
+        <button class="small-btn" id="pra-hint">提示一字</button>
+        <button class="small-btn" id="pra-answer">显示答案</button>
+        <button class="small-btn" id="pra-next">换一首</button>
+      </div>
+      <div class="hint" id="pra-stat"></div>
+      <div id="pra-body"></div>
+    </div>
+  </div>
+
+  <!-- 写作统计弹窗 -->
+  <div class="overlay" id="stats-overlay">
+    <div class="modal" style="width:660px;">
+      <h2>写作统计 <button class="x" data-close="stats-overlay">×</button></h2>
+      <div class="hint">统计基于本机作品库（「我的作品」里保存的稿件）。</div>
+      <div id="stats-body"></div>
+    </div>
+  </div>
+
+  <!-- 术语说明弹窗 -->
+  <div class="overlay" id="glossary-overlay">
+    <div class="modal" style="width:640px;">
+      <h2>术语说明 <button class="x" data-close="glossary-overlay">×</button></h2>
+      <div class="hint">界面里带<u>虚线下划线</u>的词都可以悬停看解释、点击跳到本表对应条目。</div>
+      <input type="text" id="glossary-search" placeholder="搜索术语，如：孤平 / 叶韵 / 领字 / 过片" autocomplete="off">
+      <div id="glossary-body"></div>
+    </div>
+  </div>
+
+  <audio id="bgm" loop preload="auto"></audio>
+
+  <!-- 查看原文 / 导出 PDF：预览与打印共用同一张页面 -->
+  <div class="overlay" id="pdf-overlay">
+    <div class="modal pdf-modal">
+      <h2>查看原文 · 导出 PDF <button class="x" data-close="pdf-overlay">×</button></h2>
+      <div class="pdf-controls">
+        <label>诗词 / PDF 字体 <select id="pdf-font-poem"></select></label>
+        <label>文字 <select id="pdf-script">
+          <option value="original">原文</option>
+          <option value="s2t">转繁体</option>
+          <option value="t2s">转简体</option>
+        </select></label>
+        <label>配色 <select id="pdf-palette"></select></label>
+        <label>字色 <input type="color" id="pdf-ink"></label>
+        <label>纸色 <input type="color" id="pdf-paper"></label>
+        <label>对比 <output id="pdf-contrast-val"></output></label>
+        <label>图样 <select id="pdf-motif"></select></label>
+        <label>图样浓度 <input type="range" id="pdf-motif-strength" min="5" max="60" step="5"><output id="pdf-motif-val"></output></label>
+        <label>纸纹 <select id="pdf-bg">
+          <option value="none">素纸</option>
+          <option value="1">水墨</option>
+          <option value="2">远山</option>
+          <option value="3">竹韵</option>
+          <option value="4">荷塘</option>
+          <option value="5">星空</option>
+        </select></label>
+        <label>浓度 <input type="range" id="pdf-strength" min="20" max="100" step="5"></label>
+        <label>加粗 <input type="range" id="pdf-weight" min="300" max="900" step="100"><output id="pdf-weight-val"></output></label>
+        <label>字号 <input type="range" id="pdf-size" min="12" max="36" step="1"><output id="pdf-size-val"></output></label>
+        <label>行距 <input type="range" id="pdf-line-height" min="1.2" max="2.8" step="0.1"><output id="pdf-line-height-val"></output></label>
+        <label>字距 <input type="range" id="pdf-letter-spacing" min="0" max="30" step="1"><output id="pdf-letter-spacing-val"></output></label>
+        <label>对齐 <select id="pdf-align">
+          <option value="center">居中</option>
+          <option value="left">左齐</option>
+          <option value="right">右齐</option>
+        </select></label>
+        <label>排列 <select id="pdf-layout">
+          <option value="horizontal">横排</option>
+          <option value="vertical">竖排 · 右起</option>
+        </select></label>
+        <label class="pdf-check"><input type="checkbox" id="pdf-meta"> 显示署名与韵书说明</label>
+        <button class="action primary" id="pdf-print">打印 / 存为 PDF</button>
+      </div>
+      <div class="pdf-preview-wrap" id="pdf-preview-wrap">
+        <div id="print-area"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 粘贴导入弹窗 -->
+  <div class="overlay" id="import-overlay">
+    <div class="modal" style="width:640px;">
+      <h2>粘贴导入 <button class="x" data-close="import-overlay">×</button></h2>
+      <div class="hint">粘贴诗 / 词全文，程序会按当前所选格律 / 词谱自动拆句填入（支持带标点，小序会自动跳过）。</div>
+      <textarea id="import-text" rows="8" style="width:100%;font-family:inherit;font-size:15px;line-height:1.9;padding:10px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg);color:var(--ink);box-sizing:border-box;" placeholder="如：床前明月光，疑是地上霜。举头望明月，低头思故乡。"></textarea>
+      <div class="save-form">
+        <button class="action primary" id="import-confirm">导入</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="data/词林正韵数据.js"></script>
+  <script src="data/中华新韵数据.js"></script>
+  <script src="data/词谱数据.js"></script>
+  <script src="data/诗格律.js"></script>
+  <script src="data/诗格律补充.js"></script>
+  <script src="data/常用字.js"></script>
+  <script src="data/例词.js"></script>
+  <script src="data/诗词集数据.js"></script>
+  <script src="data/全库数据/manifest.js"></script>
+  <script src="data/繁简转换数据.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
