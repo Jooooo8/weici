@@ -684,6 +684,35 @@ function assert(cond, msg) {
     assert(await page.evaluate(() => document.body.dataset.fontPoem) === "xingkai", "可选华文行楷");
     assert((await page.evaluate(() => getComputedStyle(document.querySelector("#print-area")).fontFamily)).includes("STXingkai"), "艺术字体应用到 PDF 页面");
   }
+
+  // 瘦金体没有任何合法开源字库，只能靠本机安装；装了就必须真生效，不能静默回退楷体
+  if (fontMenu.includes("shoujin")) {
+    await page.selectOption("#pdf-font-poem", "shoujin");
+    await page.waitForTimeout(200);
+    assert(await page.evaluate(() => document.body.dataset.fontPoem) === "shoujin", "可选本机安装的瘦金体");
+    assert(
+      (await page.evaluate(() => getComputedStyle(document.querySelector("#print-area")).fontFamily)).includes("瘦金体"),
+      "瘦金体应用到 PDF 页面"
+    );
+    const glyphDiff = await page.evaluate(() => {
+      const hash = (family) => {
+        const cv = document.createElement("canvas");
+        cv.width = 800; cv.height = 90;
+        const ctx = cv.getContext("2d");
+        ctx.font = "64px " + family;
+        ctx.fillStyle = "#000";
+        ctx.fillText("永和九年岁在癸丑", 0, 70);
+        const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+        let h = 0;
+        for (let i = 3; i < d.length; i += 4) h = (h * 31 + d[i]) >>> 0;
+        return h;
+      };
+      return hash('"瘦金体", serif') !== hash('"KaiTi", serif');
+    });
+    assert(glyphDiff, "瘦金体字形与楷体不同（未静默回退）");
+  } else {
+    console.log("  - 本机未安装瘦金体，跳过该项（属正常）");
+  }
   await page.locator("#pdf-weight").evaluate(el => { el.value = "700"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   await page.locator("#pdf-size").evaluate(el => { el.value = "24"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   await page.locator("#pdf-line-height").evaluate(el => { el.value = "2.5"; el.dispatchEvent(new Event("input", { bubbles: true })); });

@@ -96,13 +96,14 @@
         hupo: '"STHupo", "华文琥珀", "SimHei", sans-serif',
         caiyun: '"STCaiyun", "华文彩云", "SimHei", sans-serif',
         xiaozhuan: '"WeiCi Xiaozhuan", "FZXiaoZhuanTi", "方正小篆体", "KaiTi", "STKaiti", serif',
-        shoujin: '"FZShouJinTi", "方正瘦金体", "瘦金体", "KaiTi", serif',
+        shoujin: '"瘦金体", "FZShouJinTi", "方正瘦金体", "KaiTi", serif',
         huizong: '"宋徽宗瘦金体", "瘦金体", "KaiTi", serif',
         hanyishoujin: '"汉仪瘦金书繁", "汉仪瘦金书简", "KaiTi", serif',
         guange: '"WeiCi Guange", "翰林馆阁体", "KaiTi", "STKaiti", serif'
       };
       // 本机字体探测：只有真正装了的才出现在菜单里，避免瘦金 / 小篆都回退成楷体造成误导。
       // 小篆、馆阁体已内置，不走探测，绕开 canvas 比对带来的额外字体下载。
+      // [显示标签, 探测族名]；探测族名可以是数组，任一命中即算已安装（同一字库不同版本的族名常不一致）。
       const FONT_PROBES = {
         lishu: ["隶书", "LiSu"],
         xingkai: ["华文行楷", "STXingkai"],
@@ -112,9 +113,9 @@
         youyuan: ["幼圆", "YouYuan"],
         hupo: ["华文琥珀", "STHupo"],
         caiyun: ["华文彩云", "STCaiyun"],
-        shoujin: ["瘦金体", "FZShouJinTi"],
-        huizong: ["宋徽宗瘦金体", "宋徽宗瘦金体"],
-        hanyishoujin: ["汉仪瘦金书", "汉仪瘦金书简"]
+        shoujin: ["瘦金体", ["瘦金体", "FZShouJinTi", "方正瘦金体", "DFPShouJinW3"]],
+        huizong: ["宋徽宗瘦金体", ["宋徽宗瘦金体", "宋徽宗瘦金书"]],
+        hanyishoujin: ["汉仪瘦金书", ["汉仪瘦金书简", "汉仪瘦金书繁", "汉仪瘦金书"]]
       };
       const FONT_LABELS = {
         lishu: "隶书", xingkai: "华文行楷", xinwei: "华文新魏", shuti: "方正舒体",
@@ -146,7 +147,10 @@
           return [id, WEB_FONTS[id].label];
         });
         Object.keys(FONT_PROBES).forEach(function (id) {
-          if (fontInstalled(FONT_PROBES[id][1])) items.push([id, FONT_PROBES[id][0] || FONT_LABELS[id]]);
+          const cfg = FONT_PROBES[id];
+          const probes = Array.isArray(cfg[1]) ? cfg[1] : [cfg[1]];
+          const hit = probes.some(function (p) { return fontInstalled(p); });
+          if (hit) items.push([id, cfg[0] || FONT_LABELS[id]]);
         });
         return items;
       }
