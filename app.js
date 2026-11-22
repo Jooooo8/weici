@@ -72,7 +72,14 @@
         "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九"];
       function cnNum(n) { return CN_NUM[n] !== undefined ? CN_NUM[n] : String(n); }
 
-      // 本机字体栈：艺术字体未安装时自动回退到系统楷体 / 黑体，离线可用
+      // 随项目分发的内置 Web 字体（SIL OFL 1.1，子集化后改名，见 fonts/README.txt）
+      // 这两款不依赖本机安装，任何设备打开都可用
+      const WEB_FONTS = {
+        xiaozhuan: { family: "WeiCi Xiaozhuan", label: "小篆（内置）" },
+        guange: { family: "WeiCi Guange", label: "馆阁体（内置）" }
+      };
+
+      // 字体栈：艺术字体未安装时自动回退到系统楷体 / 黑体，离线可用
       const FONT_STACKS = {
         yahei: '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif',
         song: '"SimSun", "Songti SC", "STSong", serif',
@@ -83,32 +90,88 @@
         lishu: '"LiSu", "隶书", "STLiti", "华文隶书", "SimSun", serif',
         xingkai: '"STXingkai", "华文行楷", "行楷", "KaiTi", "STKaiti", serif',
         xinwei: '"STXinwei", "华文新魏", "新魏", "SimHei", serif',
-        shuti: '"FZShuTi", "方正舒体", "STXingkai", "KaiTi", serif',
+        shuti: '"方正舒体", "FZShuTi", "STXingkai", "KaiTi", serif',
+        yaoti: '"方正姚体", "FZYTK", "STSong", "SimSun", serif',
         youyuan: '"YouYuan", "幼圆", "Microsoft YaHei", sans-serif',
         hupo: '"STHupo", "华文琥珀", "SimHei", sans-serif',
         caiyun: '"STCaiyun", "华文彩云", "SimHei", sans-serif',
-        xiaozhuan: '"FZXiaoZhuanTi", "方正小篆体", "STXingkai", "KaiTi", serif',
-        shoujin: '"FZShouJinTi", "方正瘦金体", "瘦金体", "宋徽宗瘦金体", "STXingkai", "华文行楷", "KaiTi", serif',
-        huizong: '"宋徽宗瘦金体", "瘦金体", "FZShouJinTi", "STXingkai", "KaiTi", serif',
-        hanyishoujin: '"汉仪瘦金书繁", "汉仪瘦金书简", "瘦金体", "STXingkai", "KaiTi", serif',
-        guange: '"翰林馆阁体", "FZShuTi", "STXingkai", "KaiTi", serif'
+        xiaozhuan: '"WeiCi Xiaozhuan", "FZXiaoZhuanTi", "方正小篆体", "KaiTi", "STKaiti", serif',
+        shoujin: '"FZShouJinTi", "方正瘦金体", "瘦金体", "KaiTi", serif',
+        huizong: '"宋徽宗瘦金体", "瘦金体", "KaiTi", serif',
+        hanyishoujin: '"汉仪瘦金书繁", "汉仪瘦金书简", "KaiTi", serif',
+        guange: '"WeiCi Guange", "翰林馆阁体", "KaiTi", "STKaiti", serif'
       };
-      const ART_FONT_IDS = ["lishu", "xingkai", "xinwei", "shuti", "youyuan", "hupo", "caiyun", "xiaozhuan", "shoujin", "huizong", "hanyishoujin", "guange"];
+      // 本机字体探测：只有真正装了的才出现在菜单里，避免瘦金 / 小篆都回退成楷体造成误导。
+      // 小篆、馆阁体已内置，不走探测，绕开 canvas 比对带来的额外字体下载。
+      const FONT_PROBES = {
+        lishu: ["隶书", "LiSu"],
+        xingkai: ["华文行楷", "STXingkai"],
+        xinwei: ["华文新魏", "STXinwei"],
+        shuti: ["方正舒体", "方正舒体"],
+        yaoti: ["方正姚体", "方正姚体"],
+        youyuan: ["幼圆", "YouYuan"],
+        hupo: ["华文琥珀", "STHupo"],
+        caiyun: ["华文彩云", "STCaiyun"],
+        shoujin: ["瘦金体", "FZShouJinTi"],
+        huizong: ["宋徽宗瘦金体", "宋徽宗瘦金体"],
+        hanyishoujin: ["汉仪瘦金书", "汉仪瘦金书简"]
+      };
+      const FONT_LABELS = {
+        lishu: "隶书", xingkai: "华文行楷", xinwei: "华文新魏", shuti: "方正舒体",
+        yaoti: "方正姚体", youyuan: "幼圆", hupo: "华文琥珀", caiyun: "华文彩云",
+        xiaozhuan: "小篆", shoujin: "瘦金体", huizong: "宋徽宗瘦金体",
+        hanyishoujin: "汉仪瘦金书", guange: "馆阁体"
+      };
+      function fontInstalled(probe) {
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = 800; cv.height = 90;
+          const ctx = cv.getContext("2d");
+          const text = "永和九年岁在癸丑暮春之初";
+          const hash = function (family) {
+            ctx.clearRect(0, 0, cv.width, cv.height);
+            ctx.font = '64px ' + family;
+            ctx.fillStyle = "#000";
+            ctx.fillText(text, 0, 70);
+            const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            let h = 0;
+            for (let i = 3; i < data.length; i += 4) h = (h * 31 + data[i]) >>> 0;
+            return h;
+          };
+          return hash('"' + probe + '", serif') !== hash("serif");
+        } catch (e) { return false; }
+      }
+      function artFontItems() {
+        const items = Object.keys(WEB_FONTS).map(function (id) {
+          return [id, WEB_FONTS[id].label];
+        });
+        Object.keys(FONT_PROBES).forEach(function (id) {
+          if (fontInstalled(FONT_PROBES[id][1])) items.push([id, FONT_PROBES[id][0] || FONT_LABELS[id]]);
+        });
+        return items;
+      }
+      // 内置字体的 WOFF2 体积较大（馆阁体 3.3MB），只在真正选中时才解码加载
+      const webFontWarm = {};
+      function warmWebFont(id) {
+        const wf = WEB_FONTS[id];
+        if (!wf || !document.fonts || !document.fonts.load) return;
+        if (webFontWarm[id]) return;
+        webFontWarm[id] = true;
+        try {
+          document.fonts.load('64px "' + wf.family + '"', "永和九年岁在癸丑暮春之初").then(function () {
+            // 字形就绪后重排一次预览，避免打印稿停留在回退字体上
+            const ov = $("pdf-overlay");
+            if (ov && ov.classList.contains("show")) renderPdfViewer();
+          }).catch(function () {});
+        } catch (e) { /* 老浏览器无 FontFaceSet，交给 CSS 自然回退 */ }
+      }
       const FONT_UI_OPTIONS = [
         { label: "清晰", items: [["yahei", "微软雅黑（默认）"], ["song", "宋体"], ["fangsong", "仿宋"], ["hei", "黑体"], ["wenkai", "霞鹜文楷"]] },
-        { label: "艺术", items: ART_FONT_IDS.map(function (id) { return [id, ({
-          lishu: "隶书", xingkai: "华文行楷", xinwei: "华文新魏", shuti: "方正舒体",
-          youyuan: "幼圆", hupo: "华文琥珀", caiyun: "华文彩云", xiaozhuan: "小篆",
-          shoujin: "瘦金体", huizong: "宋徽宗瘦金体", hanyishoujin: "汉仪瘦金书", guange: "馆阁体"
-        })[id]]; }) }
+        { label: "艺术", items: artFontItems() }
       ];
       const FONT_POEM_OPTIONS = [
         { label: "端正", items: [["kai", "楷体（默认）"], ["song", "宋体"], ["fangsong", "仿宋"], ["hei", "黑体"], ["wenkai", "霞鹜文楷"]] },
-        { label: "艺术", items: ART_FONT_IDS.map(function (id) { return [id, ({
-          lishu: "隶书", xingkai: "华文行楷", xinwei: "华文新魏", shuti: "方正舒体",
-          youyuan: "幼圆", hupo: "华文琥珀", caiyun: "华文彩云", xiaozhuan: "小篆",
-          shoujin: "瘦金体", huizong: "宋徽宗瘦金体", hanyishoujin: "汉仪瘦金书", guange: "馆阁体"
-        })[id]]; }) }
+        { label: "艺术", items: artFontItems() }
       ];
 
       // PDF / 原文查看配色预设：字色与纸色成对出现，避免只改一半导致不可读
@@ -122,18 +185,24 @@
         custom: { name: "自定义", ink: null, paper: null }
       };
 
-      // 纸面印花：淡彩水墨 SVG，颜色随纸色明暗微调，离线可用
+      // 纸面印花：梅枝 / 远山 / 竹影 / 荷影 / 星点均使用真实素材裁剪，云纹与水波仍为水墨 SVG
       const PDF_MOTIFS = {
         none: { name: "无", svg: "", repeat: "no-repeat", size: "0", position: "center" },
         bamboo: {
-          name: "竹影", repeat: "no-repeat", size: "42% auto", position: "right bottom",
+          name: "竹影", repeat: "no-repeat", size: "48% auto", position: "right bottom",
+          imageSrc: "motifs/bamboo.png",
           colors: { stroke: "#24402c", fill: "#2f6b3d", accent: "#4f8a4a" },
           svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360"><defs><filter id="b"><feGaussianBlur stdDeviation="2.4"/></filter></defs><g filter="url(#b)" fill="none" stroke="{{A}}" stroke-linecap="round" opacity=".34"><path d="M318 350 C300 280 292 200 258 92" stroke-width="11"/><path d="M268 92 C244 140 232 192 242 236" stroke-width="7"/><path d="M286 250 C250 214 218 204 180 208 C218 226 250 242 286 250Z" fill="{{A}}" stroke="none"/></g><g stroke="{{S}}" fill="none" stroke-linecap="round" opacity=".86"><path d="M318 350 C300 280 292 200 258 92" stroke-width="3.2"/><path d="M268 92 C244 140 232 192 242 236" stroke-width="2.2"/><path d="M210 350 C198 288 196 220 176 142" stroke-width="2.6"/><path d="M176 142 C158 180 152 220 160 252" stroke-width="1.8"/><path d="M276 184 L306 174"/><path d="M292 276 L322 268"/><path d="M188 224 L216 216"/><path d="M170 312 L198 306"/></g><g fill="{{F}}" opacity=".72"><path d="M286 250 C256 220 228 212 196 216 C228 232 256 246 286 250Z"/><path d="M272 170 C248 140 220 134 190 142 C220 156 246 166 272 170Z"/><path d="M306 304 C278 284 252 282 224 290 C252 300 278 306 306 304Z"/><path d="M262 112 C282 88 306 86 330 94 C306 104 282 110 262 112Z"/><path d="M250 212 C224 204 200 210 180 226 C206 226 230 220 250 212Z"/><path d="M196 270 C170 244 146 240 120 246 C146 258 170 268 196 270Z"/><path d="M184 190 C162 166 140 162 118 170 C140 180 162 186 184 190Z"/><path d="M166 130 C182 108 202 106 222 112 C202 122 182 128 166 130Z"/><path d="M172 306 C148 288 124 288 102 296 C126 304 148 310 172 306Z"/></g></svg>'
         },
         plum: {
-          name: "梅枝", repeat: "no-repeat", size: "44% auto", position: "right top",
+          name: "梅枝", repeat: "no-repeat", size: "58% auto", position: "right top",
+          imageSrc: "motifs/plum.png",
           colors: { stroke: "#33231e", fill: "#c42f45", accent: "#a3243b" },
           svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360"><defs><filter id="b"><feGaussianBlur stdDeviation="2"/></filter></defs><g filter="url(#b)" fill="{{A}}" opacity=".26"><circle cx="232" cy="150" r="17"/><circle cx="190" cy="198" r="14"/><circle cx="150" cy="226" r="12"/><circle cx="120" cy="266" r="10"/></g><g stroke="{{S}}" fill="none" stroke-linecap="round" opacity=".86"><path d="M360 64 C302 76 266 112 232 158 C204 196 166 222 118 240" stroke-width="3.8"/><path d="M232 158 C246 124 266 104 294 94" stroke-width="2.4"/><path d="M166 222 C156 256 138 282 108 302" stroke-width="2.2"/><path d="M232 158 C208 124 176 110 142 116" stroke-width="2"/><path d="M190 198 C200 170 216 152 244 140" stroke-width="1.8"/></g><g fill="{{F}}" opacity=".78"><g transform="translate(232 150) scale(.85)"><circle cx="0" cy="-8" r="5"/><circle cx="7" cy="-2.5" r="5"/><circle cx="4.5" cy="6" r="5"/><circle cx="-4.5" cy="6" r="5"/><circle cx="-7" cy="-2.5" r="5"/></g><g transform="translate(190 198) scale(.75)"><circle cx="0" cy="-8" r="5"/><circle cx="7" cy="-2.5" r="5"/><circle cx="4.5" cy="6" r="5"/><circle cx="-4.5" cy="6" r="5"/><circle cx="-7" cy="-2.5" r="5"/></g><g transform="translate(150 226) scale(.68)"><circle cx="0" cy="-8" r="5"/><circle cx="7" cy="-2.5" r="5"/><circle cx="4.5" cy="6" r="5"/><circle cx="-4.5" cy="6" r="5"/><circle cx="-7" cy="-2.5" r="5"/></g><g transform="translate(278 116) scale(.66)"><circle cx="0" cy="-8" r="5"/><circle cx="7" cy="-2.5" r="5"/><circle cx="4.5" cy="6" r="5"/><circle cx="-4.5" cy="6" r="5"/><circle cx="-7" cy="-2.5" r="5"/></g><g transform="translate(126 246) scale(.62)"><circle cx="0" cy="-8" r="5"/><circle cx="7" cy="-2.5" r="5"/><circle cx="4.5" cy="6" r="5"/><circle cx="-4.5" cy="6" r="5"/><circle cx="-7" cy="-2.5" r="5"/></g><g transform="translate(214 154) scale(.7)"><circle cx="0" cy="-8" r="5"/><circle cx="7" cy="-2.5" r="5"/><circle cx="4.5" cy="6" r="5"/><circle cx="-4.5" cy="6" r="5"/><circle cx="-7" cy="-2.5" r="5"/></g></g><g fill="{{A}}" opacity=".75"><circle cx="294" cy="94" r="5"/><circle cx="120" cy="266" r="5"/><circle cx="142" cy="116" r="4"/><circle cx="244" cy="140" r="4"/></g><g stroke="{{S}}" stroke-width="1" opacity=".75"><g transform="translate(232 150)"><circle r="2.6" fill="none"/><path d="M0 0 L0 -6"/><path d="M0 0 L5 4"/><path d="M0 0 L-5 4"/></g><g transform="translate(190 198)"><circle r="2.4" fill="none"/><path d="M0 0 L0 -5"/><path d="M0 0 L4 3"/></g></g></svg>'
+        },
+        mountain: {
+          name: "远山", repeat: "no-repeat", size: "72% auto", position: "center bottom",
+          imageSrc: "motifs/mountain.png"
         },
         cloud: {
           name: "云纹", repeat: "repeat", size: "110px 74px", position: "center",
@@ -146,12 +215,14 @@
           svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 90"><defs><filter id="b"><feGaussianBlur stdDeviation="2"/></filter></defs><g filter="url(#b)" fill="none" stroke="{{A}}" stroke-width="9" opacity=".24"><path d="M0 30 C40 12 80 48 120 30 C160 12 200 48 240 30 C280 12 320 48 360 30 C380 21 392 21 400 26"/></g><g fill="none" stroke="{{S}}" stroke-width="2.4" stroke-linecap="round" opacity=".82"><path d="M0 30 C40 12 80 48 120 30 C160 12 200 48 240 30 C280 12 320 48 360 30 C380 21 392 21 400 26"/><path d="M0 64 C40 46 80 82 120 64 C160 46 200 82 240 64 C280 46 320 82 360 64 C380 55 392 55 400 60"/><path d="M0 46 C40 28 80 64 120 46 C160 28 200 64 240 46 C280 28 320 64 360 46 C380 37 392 37 400 42"/><path d="M28 22 C36 14 48 14 56 22"/><path d="M208 22 C216 14 228 14 236 22"/><path d="M108 56 C116 48 128 48 136 56"/></g></svg>'
         },
         stars: {
-          name: "星点", repeat: "repeat", size: "140px 140px", position: "center",
+          name: "星点", repeat: "repeat", size: "300px 300px", position: "center",
+          imageSrc: "motifs/stars.png",
           colors: { stroke: "#6b5420", fill: "#c49a2e", accent: "#e0bd52" },
           svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 190"><defs><filter id="b"><feGaussianBlur stdDeviation="2.4"/></filter></defs><g filter="url(#b)" fill="{{A}}" opacity=".26"><circle cx="88" cy="78" r="9"/><circle cx="154" cy="108" r="7"/><circle cx="42" cy="84" r="6"/></g><g fill="{{F}}" opacity=".85"><circle cx="30" cy="36" r="2.2"/><circle cx="106" cy="24" r="2"/><circle cx="162" cy="54" r="2.2"/><circle cx="66" cy="116" r="1.8"/><circle cx="140" cy="142" r="2.2"/><circle cx="38" cy="158" r="2"/><circle cx="122" cy="170" r="1.8"/><circle cx="176" cy="126" r="1.8"/><circle cx="82" cy="48" r="1.8"/><path d="M88 60 L92 74 L106 78 L92 82 L88 96 L84 82 L70 78 L84 74Z"/><path d="M154 96 L157 104 L165 107 L157 110 L154 118 L151 110 L143 107 L151 104Z"/><path d="M42 72 L44 78 L50 80 L44 82 L42 88 L40 82 L34 80 L40 78Z"/><path d="M120 116 L122 122 L128 124 L122 126 L120 132 L118 126 L112 124 L118 122Z"/></g></svg>'
         },
         lotus: {
-          name: "荷影", repeat: "no-repeat", size: "44% auto", position: "left bottom",
+          name: "荷影", repeat: "no-repeat", size: "50% auto", position: "left bottom",
+          imageSrc: "motifs/lotus.png",
           colors: { stroke: "#28452f", fill: "#c74461", accent: "#54865f" },
           svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360"><defs><filter id="b"><feGaussianBlur stdDeviation="2.4"/></filter></defs><g filter="url(#b)" fill="{{A}}" opacity=".28"><path d="M30 340 C76 266 138 258 208 294 C158 328 88 344 30 340Z"/></g><g stroke="{{S}}" fill="none" stroke-linecap="round" opacity=".72"><path d="M96 300 C106 244 136 208 182 184" stroke-width="3"/><path d="M30 340 C78 268 140 260 208 294" stroke-width="2.4"/><path d="M58 322 C100 300 146 296 184 302" stroke-width="1.6" opacity=".65"/></g><g fill="{{F}}" opacity=".78"><path d="M182 184 C164 154 170 126 198 102 C204 136 198 164 182 184Z"/><path d="M182 184 C208 162 238 160 262 178 C234 196 206 198 182 184Z"/><path d="M182 184 C158 190 134 182 118 162 C148 156 172 168 182 184Z"/><path d="M182 184 C188 154 206 134 232 124 C226 156 208 176 182 184Z" opacity=".85"/><g transform="translate(-70 46) scale(.62)"><path d="M182 184 C164 154 170 126 198 102 C204 136 198 164 182 184Z"/><path d="M182 184 C208 162 238 160 262 178 C234 196 206 198 182 184Z"/><path d="M182 184 C158 190 134 182 118 162 C148 156 172 168 182 184Z"/></g></g></svg>'
         }
@@ -1390,6 +1461,9 @@
         };
         ["font-ui-select"].forEach(function (id) { const el = $(id); if (el) el.innerHTML = html(FONT_UI_OPTIONS); });
         ["font-poem-select", "pdf-font-poem"].forEach(function (id) { const el = $(id); if (el) el.innerHTML = html(FONT_POEM_OPTIONS); });
+        const allIds = function (groups) { return groups.reduce(function (acc, g) { return acc.concat(g.items.map(function (it) { return it[0]; })); }, []); };
+        if (allIds(FONT_UI_OPTIONS).indexOf(state.fontUi) === -1) { state.fontUi = "yahei"; applyFonts(); }
+        if (allIds(FONT_POEM_OPTIONS).indexOf(state.fontPoem) === -1) { state.fontPoem = "kai"; applyFonts(); }
       }
 
       function renderPaletteSelects() {
@@ -1415,6 +1489,9 @@
         document.body.dataset.fontPoem = state.fontPoem || "kai";
         document.body.style.setProperty("--font-ui", FONT_STACKS[state.fontUi] || FONT_STACKS.yahei);
         document.body.style.setProperty("--font-poem", FONT_STACKS[state.fontPoem] || FONT_STACKS.kai);
+        // 内置字体按需预载，避免首次切换时先看到楷体再跳字
+        warmWebFont(state.fontUi);
+        warmWebFont(state.fontPoem);
       }
 
       function hexRgb(hex) {
@@ -1458,6 +1535,15 @@
 
       function motifStyle() {
         const m = PDF_MOTIFS[state.printMotif] || PDF_MOTIFS.none;
+        if (m.imageSrc) {
+          return {
+            image: "url(\"" + m.imageSrc + "\")",
+            repeat: m.repeat,
+            size: m.size,
+            position: m.position,
+            opacity: Math.max(5, Math.min(60, +state.printMotifStrength || 34)) / 100
+          };
+        }
         if (!m.svg) {
           return { image: "none", repeat: "no-repeat", size: "0", position: "center", opacity: 0 };
         }
@@ -4570,15 +4656,28 @@
             toast("已载入《" + w.t + "》原文");
             return;
           }
-          // 分段不一致：仅切换词牌
+          // 分段不一致：按词谱长度顺序填入，不再留空
+          const flat = chunks.join("");
+          let pos = 0;
+          const fallbackValues = t.lines.map(function (l) {
+            return l.parts.map(function (p) {
+              const s = flat.slice(pos, pos + p.length);
+              pos += p.length;
+              return s;
+            });
+          });
+          if (pos < flat.length) {
+            const lastLine = fallbackValues[fallbackValues.length - 1];
+            if (lastLine && lastLine.length) lastLine[lastLine.length - 1] += flat.slice(pos);
+          }
           state.mode = "ci";
           state.ciName = w.p;
-          resetValues();
+          state.values = fallbackValues;
           syncModeUI();
           renderMeta(); renderEditor(); renderReport(); saveState();
           switchPage("write");
           updateLastYunFromEditor();
-          toast("原文分段与本词谱不一致，已切换词牌，可对照上方原文手动填入");
+          toast("已按词谱顺序填入原文，分段与原词谱略有出入");
           return;
         }
         // 诗：尝试匹配近体诗格律
@@ -4817,6 +4916,41 @@
           renderMeta(); renderEditor(); renderReport(); saveState();
         }
       }
+
+      window.WeiciApp = {
+        currentPayload: function () {
+          const doc = buildCurrentDoc();
+          if (!doc) return null;
+          const titleInput = $("cloud-title");
+          return {
+            title: (titleInput && titleInput.value.trim()) || doc.title || "无题",
+            mode: state.mode,
+            tune: state.mode === "ci" ? state.ciName : "",
+            shiIndex: state.shiIndex,
+            yun: state.yunKey,
+            content: (doc.lines || []).join("\n"),
+            values: JSON.parse(JSON.stringify(state.values || []))
+          };
+        },
+        loadPayload: function (p) {
+          if (!p) return;
+          state.mode = p.mode || "shi";
+          if (typeof p.shiIndex === "number") state.shiIndex = p.shiIndex;
+          if (p.tune && window.CIPU[p.tune]) state.ciName = p.tune;
+          if (p.yun) { state.yunKey = p.yun; yunKey = p.yun; }
+          if (Array.isArray(p.values) && p.values.length) state.values = p.values;
+          saveState();
+          syncModeUI();
+          renderSelects();
+          $("yun-select").value = yunKey;
+          renderMeta();
+          renderEditor();
+          renderReport();
+          switchPage("write");
+          toast("已载入云作品");
+        },
+        toast: toast
+      };
 
       // ---------- 启动 ----------
       loadState();

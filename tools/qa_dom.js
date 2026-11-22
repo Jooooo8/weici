@@ -133,6 +133,8 @@ function assert(cond, msg) {
   });
   assert(align.cells === 6 && Math.round(align.width) === 180, "格律 6 格、输入框宽 180px（实际 " + JSON.stringify(align) + "）");
   assert(Math.abs(align.firstCellX - align.inputX) < 2, "格律首字与输入框首字左对齐");
+  const cellOverflow = await page.locator("#editor-body .seg input").first().evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+  assert(cellOverflow.scroll <= cellOverflow.client + 1, "字框内文字不溢出，末字可见（" + JSON.stringify(cellOverflow) + "）");
 
   console.log("== 多音字竖排 ==");
   // 如梦令第三句「兴尽晚回舟」首字「兴」为平/去两读，应竖排两个标注
@@ -491,6 +493,17 @@ function assert(cond, msg) {
   assert(await page.locator("#editor-body input[data-li]").nth(0).inputValue() === "床前明月光", "首句内容正确");
   const shiIdx = await page.inputValue("#shi-select");
   assert(shiIdx === "0" || shiIdx === "2" || shiIdx === "4" || shiIdx === "6" || shiIdx === "8" || shiIdx === "10" || shiIdx === "12" || shiIdx === "14", "静夜思匹配五绝格律");
+  await page.click("button[data-page='appreciate']");
+  await page.selectOption("#appr-collection", "");
+  await page.selectOption("#appr-tune", "");
+  await page.fill("#appr-kw", "春花秋月何时了");
+  await page.waitForTimeout(300);
+  await page.locator("#appr-list .poem-item").first().click();
+  await page.waitForTimeout(200);
+  await page.locator("#appr-detail [data-appr-edit]").click();
+  await page.waitForTimeout(400);
+  const fallbackText = await page.locator("#editor-body input[data-li]").evaluateAll(els => els.map(el => el.value).join(""));
+  assert(fallbackText.includes("春花秋月何时了"), "分段不一致的例词也按词谱顺序填入，不再留空（" + fallbackText.slice(0, 24) + "）");
 
   console.log("== 设置持久化（刷新后保留） ==");
   await page.click("#btn-settings");
@@ -640,11 +653,37 @@ function assert(cond, msg) {
   console.log("== 艺术字体与 PDF 排版 ==");
   await page.click("#btn-view-example");
   await page.waitForTimeout(300);
-  assert(await page.locator("#pdf-font-poem option").count() >= 16, "诗词 / PDF 字体包含瘦金等多款艺术字体");
-  await page.selectOption("#pdf-font-poem", "xingkai");
-  await page.waitForTimeout(200);
-  assert(await page.evaluate(() => document.body.dataset.fontPoem) === "xingkai", "可选华文行楷");
-  assert((await page.evaluate(() => getComputedStyle(document.querySelector("#print-area")).fontFamily)).includes("STXingkai"), "艺术字体应用到 PDF 页面");
+  const fontMenu = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("#pdf-font-poem option")).map((o) => o.value)
+  );
+  // 内置 Web 字体（随仓库分发）任何设备都必须出现
+  assert(fontMenu.includes("xiaozhuan"), "内置小篆常驻字体菜单");
+  assert(fontMenu.includes("guange"), "内置馆阁体常驻字体菜单");
+  // 其余艺术字体依赖本机安装，装了才出现；此处按实际情况判定
+  const probeFonts = ["shuti", "yaoti", "xingkai", "lishu"];
+  const installed = probeFonts.filter((f) => fontMenu.includes(f));
+  console.log("  本机已安装艺术字体：" + (installed.join("、") || "无"));
+  assert(fontMenu.length >= 2, "字体菜单至少含内置小篆与馆阁体（实际 " + fontMenu.length + " 项）");
+  assert(installed.every((f) => fontMenu.filter((v) => v === f).length === 1), "本机已装艺术字体各占一项，无重复");
+
+  // 用内置馆阁体验证「换字体 → 真实生效」，不依赖本机安装
+  await page.selectOption("#pdf-font-poem", "guange");
+  await page.waitForTimeout(800);
+  await page.evaluate(() => document.fonts.ready);
+  assert(await page.evaluate(() => document.body.dataset.fontPoem) === "guange", "可选内置馆阁体");
+  assert(
+    (await page.evaluate(() => getComputedStyle(document.querySelector("#print-area")).fontFamily)).includes("WeiCi Guange"),
+    "内置馆阁体应用到 PDF 页面"
+  );
+  const guangeLoaded = await page.evaluate(() => document.fonts.check('72px "WeiCi Guange"', "永和九年"));
+  assert(guangeLoaded, "馆阁体 WOFF2 已解码可用");
+
+  if (installed.includes("xingkai")) {
+    await page.selectOption("#pdf-font-poem", "xingkai");
+    await page.waitForTimeout(200);
+    assert(await page.evaluate(() => document.body.dataset.fontPoem) === "xingkai", "可选华文行楷");
+    assert((await page.evaluate(() => getComputedStyle(document.querySelector("#print-area")).fontFamily)).includes("STXingkai"), "艺术字体应用到 PDF 页面");
+  }
   await page.locator("#pdf-weight").evaluate(el => { el.value = "700"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   await page.locator("#pdf-size").evaluate(el => { el.value = "24"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   await page.locator("#pdf-line-height").evaluate(el => { el.value = "2.5"; el.dispatchEvent(new Event("input", { bubbles: true })); });
@@ -684,10 +723,16 @@ function assert(cond, msg) {
   await page.waitForTimeout(200);
   assert((await page.textContent("#print-area")).includes("常记溪亭日暮"), "简体转换可还原");
   await page.selectOption("#pdf-script", "original");
-  await page.selectOption("#pdf-font-poem", "shoujin");
-  await page.waitForTimeout(200);
-  assert(await page.evaluate(() => document.body.dataset.fontPoem) === "shoujin", "瘦金体可选");
-  assert((await page.evaluate(() => getComputedStyle(document.querySelector("#print-area")).fontFamily)).includes("FZShouJinTi"), "瘦金体应用到 PDF 页面");
+  if (installed.includes("shuti")) {
+    await page.selectOption("#pdf-font-poem", "shuti");
+    await page.waitForTimeout(200);
+    assert(await page.evaluate(() => document.body.dataset.fontPoem) === "shuti", "方正舒体可选且生效");
+    assert((await page.evaluate(() => getComputedStyle(document.querySelector("#print-area")).fontFamily)).includes("方正舒体"), "方正舒体应用到 PDF 页面");
+  } else {
+    await page.selectOption("#pdf-font-poem", "xiaozhuan");
+    await page.waitForTimeout(600);
+    assert(await page.evaluate(() => document.body.dataset.fontPoem) === "xiaozhuan", "内置小篆可选且生效");
+  }
   await page.selectOption("#pdf-font-poem", "kai");
   await page.locator("[data-close='pdf-overlay']").click();
   await page.waitForTimeout(200);
@@ -740,7 +785,7 @@ function assert(cond, msg) {
   await page.click("button[data-page='write']");
   await page.click("#btn-print");
   await page.waitForTimeout(300);
-  assert(await page.locator("#pdf-motif option").count() >= 7, "纸面图样选项齐全");
+  assert(await page.locator("#pdf-motif option").count() >= 8, "纸面图样选项齐全");
   await page.selectOption("#pdf-motif", "plum");
   await page.locator("#pdf-motif-strength").evaluate(el => { el.value = "40"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   await page.waitForTimeout(300);
@@ -748,8 +793,16 @@ function assert(cond, msg) {
     const st = getComputedStyle(document.querySelector("#print-area .pdf-sheet"), "::after");
     return { image: st.backgroundImage, opacity: st.opacity, label: document.querySelector("#pdf-motif-val").textContent };
   });
-  assert(motif.image.includes("data:image/svg+xml"), "梅枝印花绘制到纸面");
+  assert(motif.image.includes("motifs/plum.png"), "水墨梅花素材绘制到纸面");
   assert(parseFloat(motif.opacity) >= .39 && motif.label === "40%", "图样浓度可调");
+  for (const [id, path] of [["mountain", "motifs/mountain.png"], ["bamboo", "motifs/bamboo.png"], ["lotus", "motifs/lotus.png"], ["stars", "motifs/stars.png"]]) {
+    await page.selectOption("#pdf-motif", id);
+    await page.waitForTimeout(120);
+    const bg = await page.evaluate(() => getComputedStyle(document.querySelector("#print-area .pdf-sheet"), "::after").backgroundImage);
+    assert(bg.includes(path), id + " 素材绘制到纸面");
+  }
+  await page.selectOption("#pdf-motif", "mountain");
+  await page.waitForTimeout(120);
   await page.locator("[data-close='pdf-overlay']").click();
   await page.waitForTimeout(200);
   await page.click("button[data-page='appreciate']");
@@ -758,7 +811,7 @@ function assert(cond, msg) {
   await page.locator("#appr-list .poem-item").first().click();
   await page.waitForTimeout(300);
   const detailMotif = await page.evaluate(() => getComputedStyle(document.querySelector("#appr-detail"), "::after").backgroundImage);
-  assert(detailMotif.includes("data:image/svg+xml"), "印花图样同步到鉴赏详情正文");
+  assert(detailMotif.includes("motifs/mountain.png"), "远山印花同步到鉴赏详情正文");
   await page.click("#appr-detail-back");
   await page.fill("#appr-kw", "");
   await page.click("button[data-page='write']");
@@ -766,6 +819,19 @@ function assert(cond, msg) {
   await page.selectOption("#pdf-motif", "bamboo");
   await page.locator("#pdf-motif-strength").evaluate(el => { el.value = "34"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   await page.locator("[data-close='pdf-overlay']").click();
+  await page.waitForTimeout(200);
+
+  console.log("== 云作品与登录入口 ==");
+  assert(await page.evaluate(() => !!window.WorkBuddyCloud && !!window.WeiciCloud && !!window.WeiciApp), "云服务 SDK 与云作品模块已加载");
+  assert(await page.evaluate(() => !!document.querySelector("#btn-cloud") && !!document.querySelector("#cloud-overlay")), "云作品入口和弹窗存在");
+  await page.click("#btn-cloud");
+  await page.waitForTimeout(200);
+  assert(await page.locator("#cloud-overlay").evaluate(el => el.classList.contains("show")), "云作品弹窗可打开");
+  await page.fill("#cloud-phone", "1380013800");
+  await page.click("#cloud-send-code");
+  await page.waitForTimeout(100);
+  assert((await page.textContent("#cloud-auth-msg")).includes("11 位手机号"), "手机号校验生效且未发送请求");
+  await page.locator("[data-close='cloud-overlay']").click();
   await page.waitForTimeout(200);
 
   console.log("== 控制台错误 ==");
