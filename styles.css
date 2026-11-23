@@ -223,6 +223,24 @@
       font-weight: 700;
     }
 
+    /* 分隔线替代圆点：视觉更轻、不打断阅读 */
+    .sep-v {
+      display: inline-block;
+      width: 1px;
+      height: 11px;
+      margin: 0 9px -1px;
+      background: currentColor;
+      opacity: .34;
+      vertical-align: middle;
+    }
+    .step-split .sep-v { height: 13px; margin: 0 11px -2px; opacity: .45; }
+    .step-note {
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: .4px;
+      color: var(--gray);
+    }
+
     .row {
       display: flex;
       gap: 12px;

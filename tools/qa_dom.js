@@ -554,7 +554,7 @@ function assert(cond, msg) {
   await page.waitForTimeout(300);
   const printArea = await page.textContent("#print-area");
   assert(await page.locator("#pdf-overlay.show").count() === 1, "查看原文预览弹窗打开");
-  assert(printArea.includes("—— 词 · 平仄依《词林正韵》 · 青崖客 ——"), "PDF 预览底部短横线标注署名");
+  assert(printArea.includes("—— 词 │ 平仄依《词林正韵》 │ 青崖客 ——"), "PDF 预览底部短横线标注署名");
   assert(!printArea.includes("由微词生成"), "PDF 预览不再显示「由微词生成」");
   assert(!printArea.includes("作者："), "PDF 预览不含「作者：」前缀");
   assert(await page.locator("#print-area .pdf-bg").count() === 1, "PDF 预览应用纸纹背景");
