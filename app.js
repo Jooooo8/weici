@@ -233,7 +233,18 @@
       };
 
       // ---------- 状态 ----------
+      // 分隔样式：全站字段分隔符统一从这里取，切换设置时改写 SEP / SEPW 并刷新页面重渲染
+      const SEP_STYLES = {
+        bar:   { name: "细竖线 │", narrow: " │ ", wide: "　│　", plain: "│" },
+        dot:   { name: "圆点 ·",   narrow: " · ", wide: "　·　", plain: "·" },
+        slash: { name: "斜线 /",   narrow: " / ", wide: "　/　", plain: "/" },
+        space: { name: "仅空格",   narrow: "  ",  wide: "　　", plain: "" }
+      };
+      let SEP = SEP_STYLES.bar.narrow;
+      let SEPW = SEP_STYLES.bar.wide;
+
       const state = {
+        sepStyle: "bar",
         mode: "shi",
         shiIndex: 0,
         ciName: Object.keys(window.CIPU)[0] || "",
@@ -302,6 +313,11 @@
             if (s.yunKey === "中华新韵" || s.yunKey === "词林正韵") state.yunKey = s.yunKey;
             if (s.theme) state.theme = s.theme;
             if (s.bg) state.bg = s.bg;
+            if (SEP_STYLES[s.sepStyle]) {
+              state.sepStyle = s.sepStyle;
+              SEP = SEP_STYLES[s.sepStyle].narrow;
+              SEPW = SEP_STYLES[s.sepStyle].wide;
+            }
             if (FONT_STACKS[s.fontUi]) state.fontUi = s.fontUi;
             if (FONT_STACKS[s.fontPoem]) state.fontPoem = s.fontPoem;
             if (["none", "1", "2", "3", "4", "5"].indexOf(s.printBg) !== -1) state.printBg = s.printBg;
@@ -360,7 +376,7 @@
             const t = window.CIPU[n];
             const o = document.createElement("option");
             o.value = n;
-            o.textContent = n + " │ " + t.total + "字";
+            o.textContent = n + ""+SEP+"" + t.total + "字";
             o.dataset.group = g;
             og.appendChild(o);
           });
@@ -394,22 +410,22 @@
         const el = $("meta-line");
         if (state.mode === "shi") {
           const s = window.SHI[state.shiIndex];
-          el.innerHTML = "体裁：<b>近体诗 │ " + esc(s.name) + "</b>　│　" +
+          el.innerHTML = "体裁：<b>近体诗"+SEP+"" + esc(s.name) + "</b>"+SEPW+"" +
             (s.style === "五绝" ? "四句二十字" : s.style === "七绝" ? "四句二十八字" :
               s.style === "五律" ? "八句四十字" : "八句五十六字") +
-            "　│　偶句押平声韵" + (/入韵/.test(s.name) ? "，首句入韵" : "，首句可不入韵") +
-            "　│　平仄按《" + yunLabel() + "》" +
+            ""+SEPW+"偶句押平声韵" + (/入韵/.test(s.name) ? "，首句入韵" : "，首句可不入韵") +
+            ""+SEPW+"平仄按《" + yunLabel() + "》" +
             (yunKey === "中华新韵" ? "（普通话，无入声）" : "（与平水韵一致）");
         } else {
           const t = window.CIPU[state.ciName];
           if (!t) return;
           const modeName = { "平": "平韵格", "仄": "仄韵格", "转": "平仄转换", "叶": "平仄通叶" }[t.mode] || "";
-          el.innerHTML = "词牌：<b>《" + esc(state.ciName) + "》</b>　│　" + esc(t.total) + "字 │ " +
+          el.innerHTML = "词牌：<b>《" + esc(state.ciName) + "》</b>"+SEPW+"" + esc(t.total) + "字"+SEP+"" +
             t.lines.length + "句" + (t.split ? "（双调）" : "（单调）") +
-            "　│　韵式：<b>" + linkTerms(esc(modeName)) + "</b>" +
-            (t.note ? "　│　<span class='tune-note'>" + esc(t.note) + "</span>" : "") +
-            "　│　平仄押韵按《" + yunLabel() + "》" +
-            "　│　谱源：" + esc(t.source || "《唐宋词格律》") +
+            ""+SEPW+"韵式：<b>" + linkTerms(esc(modeName)) + "</b>" +
+            (t.note ? ""+SEPW+"<span class='tune-note'>" + esc(t.note) + "</span>" : "") +
+            ""+SEPW+"平仄押韵按《" + yunLabel() + "》" +
+            ""+SEPW+"谱源：" + esc(t.source || "《唐宋词格律》") +
             (t.curated ? "" : "（韵脚为谱面标注，供参考）");
         }
       }
@@ -679,7 +695,7 @@
         html += "<div class='hint'>已填 " + r.filled + " 处定式平仄，合格 " + r.correct + " 处" +
           "（可平可仄之位不计）" +
           (state.mode === "shi"
-            ? "　│　口径：<b>" + (r.strict ? linkTerms("严格") : linkTerms("宽格")) + "</b>" +
+            ? ""+SEPW+"口径：<b>" + (r.strict ? linkTerms("严格") : linkTerms("宽格")) + "</b>" +
               "<button class='fix-btn' data-shi-tone='" + (r.strict ? "0" : "1") + "'>" +
               (r.strict ? "切回宽格" : "改用严格") + "</button>"
             : "") +
@@ -1678,7 +1694,7 @@
         if (mode === "ci" && ex.title) bylineParts.push(ex.title);
         return {
           title: mode === "shi" ? (ex.title || s.name) : "《" + ciName + "》",
-          byline: bylineParts.join(" │ "),
+          byline: bylineParts.join(""+SEP+""),
           lines: lines,
           footer: [mode === "shi" ? "近体诗" : "词", "平仄依《词林正韵》"],
           note: ex.variant || "",
@@ -1709,7 +1725,7 @@
         if (!w) return null;
         const lines = (w.c || []).map(function (x) { return String(x).trim(); }).filter(Boolean);
         if (!lines.length) return null;
-        const byline = [w.d, w.a, w.p ? "词牌 │ " + w.p : ""].filter(Boolean).join(" │ ");
+        const byline = [w.d, w.a, w.p ? "词牌"+SEP+"" + w.p : ""].filter(Boolean).join(""+SEP+"");
         const footer = [w.d, w.a, kindOf(w)].filter(Boolean);
         return {
           title: w.t || "无题",
@@ -1725,8 +1741,20 @@
         return state.printBg === "none" ? "" : "backgrounds/bg" + state.printBg + ".jpg";
       }
 
+      // 静态 HTML 里的分隔符（span 与 option）随设置改写
+      function applySepStatic() {
+        const plain = SEP_STYLES[state.sepStyle] ? SEP_STYLES[state.sepStyle].plain : "│";
+        Array.prototype.forEach.call(document.querySelectorAll("[data-sep]"), function (el) {
+          el.textContent = plain;
+        });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-sep-option]"), function (el) {
+          el.textContent = el.getAttribute("data-sep-option").replace("§", plain);
+        });
+      }
+
       function syncPdfControls() {
         const pairs = [
+          ["sep-style-select", state.sepStyle],
           ["font-ui-select", state.fontUi],
           ["font-poem-select", state.fontPoem],
           ["pdf-font-poem", state.fontPoem],
@@ -1785,7 +1813,7 @@
         const src = pdfPaperSrc();
         const strength = Math.max(20, Math.min(100, +state.printStrength || 65));
         const footer = state.printMeta && doc.footer && doc.footer.length
-          ? "—— " + doc.footer.join(" │ ") + " ——" : "";
+          ? "—— " + doc.footer.join(""+SEP+"") + " ——" : "";
         const bgHtml = src
           ? "<img class='pdf-bg' src='" + esc(src) + "' alt='' style='opacity:" + (strength / 100) + "'>"
           : "";
@@ -1986,9 +2014,9 @@
           const o = document.createElement("option");
           o.value = t.yi;
           const label = yk === "中华新韵"
-            ? (t.name.replace(/韵$/, "") + " │ " + (t.tone === "平" ? "平声" : "仄声"))
+            ? (t.name.replace(/韵$/, "") + ""+SEP+"" + (t.tone === "平" ? "平声" : "仄声"))
             : (t.name + "（" + t.tone + "声）");
-          o.textContent = label + " │ " + t.chars.length + "字";
+          o.textContent = label + ""+SEP+"" + t.chars.length + "字";
           tuneSel.appendChild(o);
         });
         tuneSel.value = part.tunes[0] ? part.tunes[0].yi : "";
@@ -2005,10 +2033,10 @@
         if (!tune) return;
         const partName = yunPartLabel(yk, part);
         const tuneLabel = yk === "中华新韵"
-          ? (tune.name.replace(/韵$/, "") + " │ " + (tune.tone === "平" ? "平声" : "仄声"))
+          ? (tune.name.replace(/韵$/, "") + ""+SEP+"" + (tune.tone === "平" ? "平声" : "仄声"))
           : (tune.name + "（" + tune.tone + "声）");
         $("yun-result").innerHTML =
-          "<div class='yun-sec'><h4>" + esc(partName) + " │ " + esc(tuneLabel) + "</h4>" +
+          "<div class='yun-sec'><h4>" + esc(partName) + ""+SEP+"" + esc(tuneLabel) + "</h4>" +
           "<div class='yun-hint'>共 " + tune.chars.length + " 字（按常用度排序，前 300 字，点击任意字可查韵）</div>" +
           "<div class='yun-table'>" + tune.chars.slice(0, 300).map(function (c) {
             return "<span class='y' data-yunchar='" + esc(c) + "'>" + esc(c) + "</span>";
@@ -2041,7 +2069,7 @@
             const partName = yk === "中华新韵"
               ? r.yunName.replace(/韵$/, "")
               : "第" + cnNum(r.bu) + "部";
-            return partName + " │ " + r.yunName + " │ " + r.tone + "声";
+            return partName + ""+SEP+"" + r.yunName + ""+SEP+"" + r.tone + "声";
           }).join("；");
           html += "<div class='yun-info'><b>" + esc(ch) + "</b>：" + esc(info) + "</div>";
           // 通押字（同部同类）
@@ -2162,8 +2190,8 @@
           return;
         }
         const lines = praLines(w);
-        $("pra-title").textContent = (w.d || "") + " │ " + (w.a || "") + "《" + (w.t || "") + "》" +
-          (w.p ? " │ " + w.p : (kindOf(w) === "诗" ? " │ 诗" : ""));
+        $("pra-title").textContent = (w.d || "") + ""+SEP+"" + (w.a || "") + "《" + (w.t || "") + "》" +
+          (w.p ? ""+SEP+"" + w.p : (kindOf(w) === "诗" ? ""+SEP+"诗" : ""));
         let html = "";
         let hidden = 0;
         lines.forEach(function (text, li) {
@@ -2587,10 +2615,10 @@
             "<div class='tf-head'>" +
             "<span class='tf-name'>《" + esc(row.name) + "》</span>" +
             "<span class='tf-score' style='color:" + color + "'>匹配度 " + pct + "%</span>" +
-            "<span class='tf-meta'>" + s.total + " 字 │ " + s.lines + " 句 │ " + linkTerms(esc(s.group || "未分组")) + "</span>" +
+            "<span class='tf-meta'>" + s.total + " 字"+SEP+"" + s.lines + " 句"+SEP+"" + linkTerms(esc(s.group || "未分组")) + "</span>" +
             "<button class='small-btn' data-tf-fit='" + esc(row.name) + "'>用此词牌填</button>" +
             "</div>" +
-            (bits.length ? "<div class='tf-metrics'>" + esc(bits.join(" │ ")) + "</div>" : "") +
+            (bits.length ? "<div class='tf-metrics'>" + esc(bits.join(""+SEP+"")) + "</div>" : "") +
             (s.note ? "<div class='tf-meta'>注：" + esc(s.note) + "</div>" : "") +
             "</div>";
         });
@@ -2761,8 +2789,8 @@
           html += "<div class='jj-item'>" +
             "<div class='jj-line'>" + jijuHl(row.s, (q.kw || "").trim()) + "</div>" +
             "<div class='jj-src'>" +
-            "<span>" + esc(row.d ? row.d + " │ " : "") + esc(row.a) + "《" + esc(row.t) + "》" +
-            (row.p ? " │ " + esc(row.p) : "") + "</span>" +
+            "<span>" + esc(row.d ? row.d + ""+SEP+"" : "") + esc(row.a) + "《" + esc(row.t) + "》" +
+            (row.p ? ""+SEP+"" + esc(row.p) : "") + "</span>" +
             "<span class='jj-tone'>" + esc(toneStringOf(row.s)) + "</span>" +
             "<button class='small-btn' data-jj-use='" + i + "'>用此句</button>" +
             "<button class='small-btn' data-jj-copy='" + i + "'>复制</button>" +
@@ -3377,7 +3405,7 @@
         renderEditor();
         renderReport();
         saveState();
-        const who = ex.author ? ex.author + (ex.title ? " │ " + ex.title : "") : fallbackTitle;
+        const who = ex.author ? ex.author + (ex.title ? ""+SEP+"" + ex.title : "") : fallbackTitle;
         // 载入后按「当前韵书」实时复核，真有出律才提示（与右侧检测面板口径一致）
         let badCount = 0;
         lines.forEach(function (line, li) {
@@ -3555,6 +3583,24 @@
         $("author-id").addEventListener("keydown", function (e) {
           if (e.key === "Enter") $("author-id-save").click();
         });
+        const sepSel = $("sep-style-select");
+        if (sepSel) {
+          Object.keys(SEP_STYLES).forEach(function (k) {
+            const o = document.createElement("option");
+            o.value = k; o.textContent = SEP_STYLES[k].name;
+            sepSel.appendChild(o);
+          });
+          sepSel.value = state.sepStyle;
+          sepSel.addEventListener("change", function () {
+            const st = SEP_STYLES[this.value];
+            if (!st) return;
+            state.sepStyle = this.value;
+            SEP = st.narrow; SEPW = st.wide;
+            saveState();
+            // 分隔符散落在各页的文本里，刷新一次最稳妥、不会漏掉已渲染内容
+            location.reload();
+          });
+        }
         $("font-ui-select").addEventListener("change", function () { updatePdfSetting("fontUi", this.value); });
         $("font-poem-select").addEventListener("change", function () { updatePdfSetting("fontPoem", this.value); });
         $("print-bg-select").addEventListener("change", function () { updatePdfSetting("printBg", this.value); });
@@ -3695,7 +3741,7 @@
           if (e.target.closest("[data-appr-copy]")) {
             const w = APPR_CUR_WORK;
             if (w) {
-              const head = (w.d ? w.d + " │ " : "") + (w.a || "") + "《" + (w.t || "无题") + "》" + (w.p ? " │ " + w.p : "");
+              const head = (w.d ? w.d + ""+SEP+"" : "") + (w.a || "") + "《" + (w.t || "无题") + "》" + (w.p ? ""+SEP+"" + w.p : "");
               copyPlainText(head + "\n" + (w.c || []).join("\n"), "已复制原文（" + (w.t || "无题") + "）");
             }
             return;
@@ -3796,7 +3842,7 @@
 
       // ---------- 界面设置：主题与背景 ----------
       const THEMES = [
-        { id: "default", name: "默认 │ 宣纸", sw: "#faf6ee" },
+        { id: "default", name: "默认"+SEP+"宣纸", sw: "#faf6ee" },
         { id: "lan", name: "黛蓝", sw: "#33507a" },
         { id: "mo", name: "墨绿", sw: "#3b5d47" },
         { id: "ou", name: "藕荷", sw: "#8b5a9e" },
@@ -3804,7 +3850,7 @@
         { id: "mu", name: "暮色", sw: "#2a2620" }
       ];
       const BGS = [
-        { id: "none", name: "无 │ 纯色" },
+        { id: "none", name: "无"+SEP+"纯色" },
         { id: "1", name: "水墨" },
         { id: "2", name: "远山" },
         { id: "3", name: "竹韵" },
@@ -4009,8 +4055,8 @@
         } else {
           el.innerHTML = list.map(function (w) {
             const typeName = w.mode === "shi"
-              ? "诗 │ " + ((window.SHI[w.shiIndex] || {}).name || "?")
-              : "词 │ 《" + (w.ciName || "?") + "》";
+              ? "诗"+SEP+"" + ((window.SHI[w.shiIndex] || {}).name || "?")
+              : "词"+SEP+"《" + (w.ciName || "?") + "》";
             const excerpt = (w.values || []).map(function (r) { return r.join("、"); })
               .filter(Boolean).join("。") || "（空）";
             return "<div class='works-item'>" +
@@ -4067,7 +4113,7 @@
         const w = loadWorks().filter(function (x) { return x.id === id; })[0];
         if (!w) return;
         let body = "《" + w.title + "》\n" +
-          (w.mode === "shi" ? "近体诗 │ " + ((window.SHI[w.shiIndex] || {}).name || "") : "词 │ " + w.ciName) +
+          (w.mode === "shi" ? "近体诗"+SEP+"" + ((window.SHI[w.shiIndex] || {}).name || "") : "词"+SEP+"" + w.ciName) +
           "\n\n" + workText(w);
         if (state.authorId) body += "\n\n—— " + state.authorId + " ——";
         downloadText(w.title + ".txt", body);
@@ -4340,7 +4386,7 @@
           return "<div class='poem-item" + (APPR_STATE.activeIdx === i ? " active" : "") + "' data-ai='" + i + "'>" +
             "<span class='pi-title'>" + esc(w.t || "无题") + "</span>" +
             (w.p ? "<span class='pi-badge'>" + esc(w.p) + "</span>" : "") +
-            "<span class='pi-sub'>" + esc(w.d + " │ " + w.a) + "</span>" +
+            "<span class='pi-sub'>" + esc(w.d + ""+SEP+"" + w.a) + "</span>" +
             "<span class='pi-excerpt'>" + esc(first) + "</span></div>";
         }).join("");
       }
@@ -4493,7 +4539,7 @@
         const pctTxt = st.rate === null ? "—" : Math.round(st.rate * 100) + "%";
         const color = st.rate === null ? "var(--gray)" : st.rate === 1 ? "var(--green)" : st.rate >= 0.9 ? "#c07f2a" : "var(--red)";
         let html = "<div class='cmp-box-inner'>";
-        html += "<div class='cmp-head'><span class='cmp-title'>谱式对照 │ " + esc(spec.kind) + "《" + esc(spec.name) + "》</span>" +
+        html += "<div class='cmp-head'><span class='cmp-title'>谱式对照"+SEP+"" + esc(spec.kind) + "《" + esc(spec.name) + "》</span>" +
           "<span class='cmp-sum' style='color:" + color + "'>定式平仄 " + st.filled + " 处，合律 " + st.ok + " 处（" + pctTxt + "）</span>" +
           (al.offset > 0 ? "<span class='cmp-meta'>（已跳过开头 " + al.offset + " 字，多为小序或题注）</span>" : "") + "</div>";
         html += "<div class='hint'>上行为谱式要求，下行为原文逐字：绿=合律，红=出律，紫=平仄两读（任一读合律即通过），灰=韵书未收录。鼠标悬停可看该字的韵部与声调。原文按谱式分段显示，与原文标点断句可能略有出入。</div>";
@@ -4528,7 +4574,7 @@
         let html = "<div class='pd-head'>";
         html += "<span class='pd-title'>" + esc(w.t || "无题") + "</span>";
         if (w.p) html += "<span class='pi-badge'>" + esc(w.p) + "</span>";
-        html += "<span class='pd-meta'>" + esc(w.d + " │ " + w.a + (w.tags && w.tags.length ? " │ " + w.tags.join(" / ") : "")) + "</span>";
+        html += "<span class='pd-meta'>" + esc(w.d + ""+SEP+"" + w.a + (w.tags && w.tags.length ? ""+SEP+"" + w.tags.join(" / ") : "")) + "</span>";
         html += "</div>";
         html += "<div class='pd-content'>" + (w.c || []).map(esc).join("<br>") + "</div>";
         html += "<div class='actions'>";
@@ -4582,7 +4628,7 @@
         const w = recommendWork;
         const kind = kindOf(w);
         const meta = [w.d, w.a, kind, (w.tags || []).slice(0, 3).join(" / ")]
-          .filter(Boolean).join(" │ ");
+          .filter(Boolean).join(""+SEP+"");
         const preview = (w.c || []).slice(0, 3).join(" ");
         let html = "<div class='rec-head'><span class='rec-label'>随 机 推 荐</span>" +
           "<span><button class='rec-refresh' id='rec-practice'>随机默写</button> " +
@@ -4823,8 +4869,8 @@
         const ex = window.LISHI ? window.LISHI[s.name] : null;
         const strict = shiStrictMode();
         let html = "<div class='sd-head'><span class='sd-name'>" + esc(s.name) + "</span>" +
-          "<span class='sd-meta'>" + esc(s.style) + " │ " + s.lines.length + " 句 " +
-          (s.lines.reduce(function (n, l) { return n + l.pat.length; }, 0)) + " 字 │ " +
+          "<span class='sd-meta'>" + esc(s.style) + ""+SEP+"" + s.lines.length + " 句 " +
+          (s.lines.reduce(function (n, l) { return n + l.pat.length; }, 0)) + " 字"+SEP+"" +
           (s.lines[0].rhyme ? "首句入韵" : "首句不入韵") + "</span>" +
           "<span class='sd-acts'><button class='small-btn' id='sd-use'>按此格律写</button>" +
           "<button class='small-btn' id='sd-load'>载入例作校验</button>" +
@@ -4962,6 +5008,7 @@
       applyTheme();
       applyBg();
       applyFonts();
+      applySepStatic();
       applyPrintPalette();
       renderFontSelects();
       renderPaletteSelects();

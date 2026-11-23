@@ -240,6 +240,8 @@
       letter-spacing: .4px;
       color: var(--gray);
     }
+    /* 可切换的正文分隔符：颜色继承、不额外强调 */
+    .sep-inline { opacity: .55; font-weight: 400; }
 
     .row {
       display: flex;
