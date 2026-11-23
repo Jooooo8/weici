@@ -8,3 +8,4 @@ __pycache__/
 fonts-local/
 .DS_Store
 Thumbs.db
+node_modules/

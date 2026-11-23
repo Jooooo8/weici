@@ -54,10 +54,15 @@
 
 四、如何重新生成
 --------------------------------------------------
-字符集与构建脚本见 tools/tmp/fonts-download/：
-  build_charset.py  生成本目录用的字符集 charset-web.txt
-  build_webfonts.py 子集化 + 改族名 + 生成 @font-face 片段 fontface.css
+字符集与构建脚本见 tools/fonts/（随仓库分发）：
+  charset-web.txt    构建用的 7755 字字符集
+  build_charset.py   生成字符集
+  build_webfonts.py  子集化 + 改族名 + 生成 @font-face 片段 fontface.css
 
 依赖：python -m pip install fonttools brotli
-命令：python tools/tmp/fonts-download/build_charset.py
-      python tools/tmp/fonts-download/build_webfonts.py
+命令：python tools/fonts/build_charset.py
+      python tools/fonts/build_webfonts.py
+
+注意：build_webfonts.py 还需要两款源字体的原始 TTF（馆阁体 GuanGe Kai、
+小篆 Chine-Culture Xiaozhuan），按各自授权从原作者处获取后放到脚本
+同级目录。这两个源文件体积大且涉及授权，不随仓库分发。
